@@ -2,6 +2,8 @@ import sqlite3
 import json
 import os
 from datetime import datetime
+from typing import Optional
+
 
 # Fallback to /tmp if current directory is read-only (common in serverless environments like Vercel)
 current_dir_writable = os.access(".", os.W_OK)
