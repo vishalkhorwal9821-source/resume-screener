@@ -3,7 +3,10 @@ import json
 import os
 from datetime import datetime
 
-DB_PATH = "resume_screener.db"
+DB_PATH = os.getenv(
+    "DB_PATH",
+    "/tmp/resume_screener.db" if os.getenv("VERCEL") else "resume_screener.db",
+)
 
 def init_db():
     """Initialize the SQLite database."""

@@ -7,7 +7,10 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 import os
 import uuid
 
-EXPORT_DIR = "exports"
+EXPORT_DIR = os.getenv(
+    "EXPORT_DIR",
+    "/tmp/exports" if os.getenv("VERCEL") else "exports",
+)
 os.makedirs(EXPORT_DIR, exist_ok=True)
 
 def export_to_excel(session: dict) -> str:

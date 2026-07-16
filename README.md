@@ -87,6 +87,8 @@ Frontend runs on `http://localhost:3000`
 - `FRONTEND_ORIGIN`: primary frontend origin for CORS
 - `CORS_ORIGINS`: optional comma-separated extra origins
 - `MAX_FILE_SIZE_MB`: max resume file size (default: 8)
+- `DB_PATH`: optional sqlite path (defaults to `/tmp/resume_screener.db` on Vercel)
+- `EXPORT_DIR`: optional export output path (defaults to `/tmp/exports` on Vercel)
 
 ### Frontend
 
