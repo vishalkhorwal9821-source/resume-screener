@@ -10,24 +10,30 @@ export function authHeaders(token) {
 }
 
 export async function apiFetch(path, { token, headers = {}, ...options } = {}) {
-  const response = await fetch(`${API}${path}`, {
-    ...options,
-    headers: {
-      ...authHeaders(token),
-      ...headers,
-    },
-  });
+  let response;
+  try {
+    response = await fetch(`${API}${path}`, {
+      ...options,
+      headers: {
+        ...authHeaders(token),
+        ...headers,
+      },
+    });
+  } catch {
+    throw new Error(`Cannot reach API at ${API}. Set VITE_API_URL to your backend deployment URL.`);
+  }
 
   if (!response.ok) {
-    let message = "Request failed";
+    let message = `Request failed (${response.status})`;
     try {
       const payload = await response.json();
       if (typeof payload?.detail === "string") message = payload.detail;
       else if (payload?.detail?.message) message = payload.detail.message;
+      else if (typeof payload?.message === "string") message = payload.message;
     } catch {
-      message = response.statusText || message;
+      if (response.statusText) message = response.statusText;
     }
-    throw new Error(message);
+    throw new Error(`${message} [${API}${path}]`);
   }
 
   return response;
