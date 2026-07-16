@@ -73,98 +73,124 @@ async def screen_resumes(
     resumes: List[UploadFile] = File(...),
     token_data: dict = Depends(verify_token)
 ):
-    if not job_description.strip():
-        raise HTTPException(status_code=400, detail="Job description cannot be empty")
-    if not resumes:
-        raise HTTPException(status_code=400, detail="No resumes uploaded")
+    try:
+        if not job_description.strip():
+            raise HTTPException(status_code=400, detail="Job description cannot be empty")
+        if not resumes:
+            raise HTTPException(status_code=400, detail="No resumes uploaded")
 
-    results = []
-    rejected_files = []
+        results = []
+        rejected_files = []
 
-    for resume_file in resumes:
-        content = await resume_file.read()
-        filename = resume_file.filename or "unknown"
-        extension = os.path.splitext(filename.lower())[1]
-        size_mb = len(content) / (1024 * 1024)
+        for resume_file in resumes:
+            content = await resume_file.read()
+            filename = resume_file.filename or "unknown"
+            extension = os.path.splitext(filename.lower())[1]
+            size_mb = len(content) / (1024 * 1024)
 
-        if extension not in ALLOWED_EXTENSIONS:
-            rejected_files.append(
-                {
-                    "filename": filename,
-                    "reason": f"Unsupported format '{extension}'. Only PDF and DOCX are supported.",
-                }
+            if extension not in ALLOWED_EXTENSIONS:
+                rejected_files.append(
+                    {
+                        "filename": filename,
+                        "reason": f"Unsupported format '{extension}'. Only PDF and DOCX are supported.",
+                    }
+                )
+                continue
+
+            if size_mb > MAX_FILE_SIZE_MB:
+                rejected_files.append(
+                    {
+                        "filename": filename,
+                        "reason": f"File too large ({size_mb:.1f} MB). Max allowed is {MAX_FILE_SIZE_MB:.1f} MB.",
+                    }
+                )
+                continue
+
+            if extension == ".pdf":
+                text = extract_text_from_pdf(content)
+            elif extension == ".docx":
+                text = extract_text_from_docx(content)
+            else:
+                text = ""
+
+            if not text.strip():
+                rejected_files.append({"filename": filename, "reason": "Could not extract readable text from file."})
+                continue
+
+            result = score_resume(text, job_description, filename)
+            results.append(result)
+
+        if not results:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": "No resumes could be screened.",
+                    "rejected_files": rejected_files,
+                },
             )
-            continue
 
-        if size_mb > MAX_FILE_SIZE_MB:
-            rejected_files.append(
-                {
-                    "filename": filename,
-                    "reason": f"File too large ({size_mb:.1f} MB). Max allowed is {MAX_FILE_SIZE_MB:.1f} MB.",
-                }
-            )
-            continue
+        results.sort(key=lambda x: x["final_score"], reverse=True)
 
-        if extension == ".pdf":
-            text = extract_text_from_pdf(content)
-        elif extension == ".docx":
-            text = extract_text_from_docx(content)
-        else:
-            text = ""
+        session_id = str(uuid.uuid4())
+        save_session(session_id, job_description, results, token_data["sub"])
 
-        if not text.strip():
-            rejected_files.append({"filename": filename, "reason": "Could not extract readable text from file."})
-            continue
-
-        result = score_resume(text, job_description, filename)
-        results.append(result)
-
-    if not results:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "message": "No resumes could be screened.",
-                "rejected_files": rejected_files,
-            },
-        )
-
-    results.sort(key=lambda x: x["final_score"], reverse=True)
-
-    session_id = str(uuid.uuid4())
-    save_session(session_id, job_description, results, token_data["sub"])
-
-    return {
-        "session_id": session_id,
-        "screened_by": token_data["sub"],
-        "total_resumes": len(results),
-        "rejected_files": rejected_files,
-        "results": results,
-        "screened_at": datetime.utcnow().isoformat()
-    }
+        return {
+            "session_id": session_id,
+            "screened_by": token_data["sub"],
+            "total_resumes": len(results),
+            "rejected_files": rejected_files,
+            "results": results,
+            "screened_at": datetime.utcnow().isoformat()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"Crashed in /screen: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Database or screening engine crash: {str(e)}")
 
 @app.get("/sessions")
 async def get_sessions(token_data: dict = Depends(verify_token)):
-    sessions = get_all_sessions(token_data["sub"] if token_data["role"] == "Recruiter" else None)
-    return sessions
+    try:
+        sessions = get_all_sessions(token_data["sub"] if token_data["role"] == "Recruiter" else None)
+        return sessions
+    except Exception as e:
+        import traceback
+        print(f"Crashed in /sessions: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Database session query crash: {str(e)}")
 
 @app.get("/export/excel/{session_id}")
 async def export_excel(session_id: str, token_data: dict = Depends(verify_token)):
-    sessions = get_all_sessions()
-    session = next((s for s in sessions if s["session_id"] == session_id), None)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    filepath = export_to_excel(session)
-    return FileResponse(filepath, filename=f"screened_{session_id[:8]}.xlsx",
-                        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    try:
+        sessions = get_all_sessions()
+        session = next((s for s in sessions if s["session_id"] == session_id), None)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        filepath = export_to_excel(session)
+        return FileResponse(filepath, filename=f"screened_{session_id[:8]}.xlsx",
+                            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"Crashed in /export/excel: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Excel generation crash: {str(e)}")
 
 @app.get("/export/pdf/{session_id}")
 async def export_pdf(session_id: str, token_data: dict = Depends(verify_token)):
-    sessions = get_all_sessions()
-    session = next((s for s in sessions if s["session_id"] == session_id), None)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    filepath = export_to_pdf_report(session)
-    return FileResponse(filepath, filename=f"report_{session_id[:8]}.pdf", media_type="application/pdf")
+    try:
+        sessions = get_all_sessions()
+        session = next((s for s in sessions if s["session_id"] == session_id), None)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+        filepath = export_to_pdf_report(session)
+        return FileResponse(filepath, filename=f"report_{session_id[:8]}.pdf", media_type="application/pdf")
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"Crashed in /export/pdf: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"PDF generation crash: {str(e)}")
 
 @app.get("/health")
 async def health():

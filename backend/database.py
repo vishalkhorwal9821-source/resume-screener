@@ -10,6 +10,11 @@ DB_PATH = os.getenv(
 
 def init_db():
     """Initialize the SQLite database."""
+    # Ensure directory exists (e.g. /tmp on Vercel)
+    db_dir = os.path.dirname(DB_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+        
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
@@ -25,8 +30,15 @@ def init_db():
     conn.commit()
     conn.close()
 
+# Auto-initialize database when this module is imported on Vercel
+try:
+    init_db()
+except Exception as db_err:
+    print(f"Database initialization error on import: {db_err}")
+
 def save_session(session_id: str, job_description: str, results: list, created_by: str):
     """Save a screening session."""
+    init_db()  # Defensive execution check
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
@@ -38,6 +50,7 @@ def save_session(session_id: str, job_description: str, results: list, created_b
 
 def get_all_sessions(created_by: str = None):
     """Get all sessions, optionally filtered by user."""
+    init_db()  # Defensive execution check
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -64,3 +77,4 @@ def get_all_sessions(created_by: str = None):
 def get_db():
     """Dependency for FastAPI (placeholder for future use)."""
     pass
+
