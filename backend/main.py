@@ -16,8 +16,12 @@ from models import LoginRequest
 
 app = FastAPI(title="AI Resume Screener API")
 
-frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
-extra_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+frontend_origin_raw = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+frontend_origin = frontend_origin_raw.strip().rstrip("/")
+
+extra_origins_raw = os.getenv("CORS_ORIGINS", "")
+extra_origins = [o.strip().rstrip("/") for o in extra_origins_raw.split(",") if o.strip()]
+
 allow_origins = list(
     dict.fromkeys(
         [
@@ -29,13 +33,20 @@ allow_origins = list(
     )
 )
 
+# Regex to match:
+# 1. Any localhost or 127.0.0.1 with optional port (e.g., http://localhost:3000)
+# 2. Any Vercel deployment domain (e.g., https://resume-screener-fawn-beta.vercel.app)
+allow_origin_regex = r"^(https://.*\.vercel\.app|http://localhost(:\d+)?|http://127\.0\.0\.1(:\d+)?)$"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins,
+    allow_origin_regex=allow_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 USERS = {
     "admin@hr.com": {"password": hash_password("admin123"), "role": "Admin"},
@@ -157,7 +168,13 @@ async def export_pdf(session_id: str, token_data: dict = Depends(verify_token)):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "frontend_origin": frontend_origin,
+        "allow_origins": allow_origins,
+        "allow_origin_regex": allow_origin_regex,
+    }
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
