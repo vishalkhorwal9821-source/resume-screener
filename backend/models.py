@@ -29,3 +29,9 @@ class SessionResponse(BaseModel):
     total_resumes: int
     results: List[CandidateResult]
     screened_at: str
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    role: str
+

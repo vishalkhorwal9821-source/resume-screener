@@ -13,6 +13,7 @@ export default function Screener({ token }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [minScore, setMinScore] = useState(0);
+  const [progress, setProgress] = useState({ current: 0, total: 0, status: "" });
 
   const filteredResults = useMemo(
     () => results.filter((item) => item.final_score >= minScore),
@@ -29,6 +30,7 @@ export default function Screener({ token }) {
     setSessionId(null);
     setRejectedFiles([]);
     setError("");
+    setProgress({ current: 0, total: 0, status: "" });
   };
 
   const runScreening = async () => {
@@ -45,23 +47,62 @@ export default function Screener({ token }) {
     setError("");
     setResults([]);
     setRejectedFiles([]);
+    setProgress({ current: 0, total: files.length, status: "Preparing uploads..." });
 
-    const formData = new FormData();
-    formData.append("job_description", jobDescription);
-    files.forEach((file) => formData.append("resumes", file));
+    const BATCH_SIZE = 4;
+    let activeSessionId = null;
+    let allResults = [];
+    let allRejected = [];
 
     try {
-      const response = await apiFetch("/screen", {
-        method: "POST",
-        token,
-        body: formData,
+      for (let i = 0; i < files.length; i += BATCH_SIZE) {
+        const batch = files.slice(i, i + BATCH_SIZE);
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(files.length / BATCH_SIZE);
+        
+        setProgress({
+          current: i,
+          total: files.length,
+          status: `Processing batch ${batchNum} of ${totalBatches} (${i} of ${files.length} resumes completed)...`
+        });
+
+        const formData = new FormData();
+        formData.append("job_description", jobDescription);
+        if (activeSessionId) {
+          formData.append("session_id", activeSessionId);
+        }
+        batch.forEach((file) => formData.append("resumes", file));
+
+        const response = await apiFetch("/screen", {
+          method: "POST",
+          token,
+          body: formData,
+        });
+
+        const payload = await response.json();
+        
+        activeSessionId = payload.session_id;
+        allResults = payload.results || [];
+        if (payload.rejected_files) {
+          allRejected = [...allRejected, ...payload.rejected_files];
+        }
+      }
+
+      setProgress({
+        current: files.length,
+        total: files.length,
+        status: `Successfully screened all ${files.length} resumes!`
       });
-      const payload = await response.json();
-      setResults(payload.results || []);
-      setSessionId(payload.session_id || null);
-      setRejectedFiles(payload.rejected_files || []);
+      
+      setResults(allResults);
+      setSessionId(activeSessionId);
+      setRejectedFiles(allRejected);
     } catch (requestError) {
       setError(requestError.message || "Screening failed.");
+      if (allResults.length > 0) {
+        setResults(allResults);
+        setSessionId(activeSessionId);
+      }
     } finally {
       setLoading(false);
     }
@@ -80,7 +121,7 @@ export default function Screener({ token }) {
           <div>
             <h2 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">AI Resume Screening</h2>
             <p className="text-xs md:text-sm text-slate-500 mt-1">
-              Analyze candidates instantly by scoring resumes directly against job requirements.
+              Screen and rank up to 1,000+ resumes by parsing and scoring them in automated server-friendly batches.
             </p>
           </div>
           <button
@@ -120,15 +161,15 @@ export default function Screener({ token }) {
                 <div className="space-y-2">
                   <div className="text-3xl animate-pulse">📤</div>
                   <p className="text-xs font-bold text-slate-700 group-hover:text-blue-600 transition-colors">Drag and drop or click to select files</p>
-                  <p className="text-[10px] text-slate-400">Supports PDF and DOCX files (Max 8MB each)</p>
+                  <p className="text-[10px] text-slate-400">Supports PDF and DOCX (Select up to 1,000+ files)</p>
                 </div>
               </div>
 
               {files.length > 0 && (
                 <div className="rounded-xl border border-slate-200/40 bg-white/40 p-3 max-h-[140px] overflow-y-auto space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Selected ({files.length})</p>
-                  {files.map((file) => (
-                    <div key={file.name} className="flex items-center justify-between text-xs text-slate-600 bg-white/70 px-2 py-1 rounded-lg">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Selected ({files.length} resumes)</p>
+                  {files.map((file, index) => (
+                    <div key={file.name + index} className="flex items-center justify-between text-xs text-slate-600 bg-white/70 px-2 py-1 rounded-lg">
                       <span className="truncate pr-4">{file.name}</span>
                       <span className="text-[10px] text-slate-400 font-mono">{(file.size / 1024).toFixed(0)} KB</span>
                     </div>
@@ -137,7 +178,23 @@ export default function Screener({ token }) {
               )}
             </div>
 
-            <div className="space-y-2 pt-2">
+            <div className="space-y-3 pt-2">
+              {/* Live Batch Progress Indicator */}
+              {loading && progress.total > 0 && (
+                <div className="space-y-2 bg-blue-500/10 border border-blue-500/20 p-3.5 rounded-xl animate-fade-in">
+                  <div className="flex justify-between text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                    <span className="truncate max-w-[250px]">{progress.status}</span>
+                    <span>{Math.round((progress.current / progress.total) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden shadow-inner">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full transition-all duration-300 rounded-full"
+                      style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={runScreening}
                 disabled={loading}
@@ -149,7 +206,7 @@ export default function Screener({ token }) {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    <span>Screening Resumes...</span>
+                    <span>Screening Resumes ({progress.current}/{progress.total})...</span>
                   </>
                 ) : (
                   <>
@@ -177,9 +234,9 @@ export default function Screener({ token }) {
             <span>⚠️</span>
             <span>Rejected Files ({rejectedFiles.length})</span>
           </h3>
-          <ul className="space-y-1 text-xs text-amber-700 font-medium">
-            {rejectedFiles.map((file) => (
-              <li key={`${file.filename}-${file.reason}`} className="flex items-center gap-1.5">
+          <ul className="space-y-1 text-xs text-amber-700 font-medium max-h-[150px] overflow-y-auto">
+            {rejectedFiles.map((file, idx) => (
+              <li key={`${file.filename}-${idx}`} className="flex items-center gap-1.5">
                 <span className="bullet text-[8px]">•</span>
                 <strong>{file.filename}:</strong> {file.reason}
               </li>

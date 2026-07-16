@@ -1,7 +1,7 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from typing import List
+from typing import List, Optional
 import uvicorn
 import os
 import uuid
@@ -10,9 +10,10 @@ from datetime import datetime
 from auth import create_access_token, verify_token, hash_password, verify_password
 from parser import extract_text_from_pdf, extract_text_from_docx
 from scorer import score_resume
-from database import init_db, save_session, get_all_sessions
+from database import init_db, save_session, get_all_sessions, get_session, create_user, get_user
 from exporter import export_to_excel, export_to_pdf_report
-from models import LoginRequest
+from models import LoginRequest, RegisterRequest
+
 
 app = FastAPI(title="AI Resume Screener API")
 
@@ -48,10 +49,6 @@ app.add_middleware(
 )
 
 
-USERS = {
-    "admin@hr.com": {"password": hash_password("admin123"), "role": "Admin"},
-    "recruiter@hr.com": {"password": hash_password("recruit123"), "role": "Recruiter"},
-}
 ALLOWED_EXTENSIONS = {".pdf", ".docx"}
 MAX_FILE_SIZE_MB = float(os.getenv("MAX_FILE_SIZE_MB", "8"))
 
@@ -59,18 +56,55 @@ MAX_FILE_SIZE_MB = float(os.getenv("MAX_FILE_SIZE_MB", "8"))
 async def startup():
     init_db()
 
+@app.post("/auth/register")
+async def register(req: RegisterRequest):
+    try:
+        if not req.email or not req.password:
+            raise HTTPException(status_code=400, detail="Email and password cannot be empty")
+        
+        # Email format validation
+        import re
+        if not re.match(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", req.email):
+            raise HTTPException(status_code=400, detail="Invalid email format")
+            
+        if len(req.password) < 6:
+            raise HTTPException(status_code=400, detail="Password must be at least 6 characters long")
+            
+        if req.role not in ["Admin", "Recruiter"]:
+            raise HTTPException(status_code=400, detail="Role must be either 'Admin' or 'Recruiter'")
+            
+        success = create_user(req.email, hash_password(req.password), req.role)
+        if not success:
+            raise HTTPException(status_code=400, detail="User with this email already exists")
+            
+        return {"status": "success", "message": "User registered successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"Crashed in /auth/register: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Database registration crash: {str(e)}")
+
 @app.post("/auth/login")
 async def login(req: LoginRequest):
-    user = USERS.get(req.email)
-    if not user or not verify_password(req.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    token = create_access_token({"sub": req.email, "role": user["role"]})
-    return {"access_token": token, "role": user["role"], "email": req.email}
+    try:
+        user = get_user(req.email)
+        if not user or not verify_password(req.password, user["password_hash"]):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        token = create_access_token({"sub": req.email, "role": user["role"]})
+        return {"access_token": token, "role": user["role"], "email": req.email}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"Crashed in /auth/login: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Login query crash: {str(e)}")
 
 @app.post("/screen")
 async def screen_resumes(
     job_description: str = Form(...),
     resumes: List[UploadFile] = File(...),
+    session_id: Optional[str] = Form(None),
     token_data: dict = Depends(verify_token)
 ):
     try:
@@ -81,6 +115,13 @@ async def screen_resumes(
 
         results = []
         rejected_files = []
+
+        # Load existing results if appending to a session
+        existing_results = []
+        if session_id:
+            existing_session = get_session(session_id)
+            if existing_session:
+                existing_results = existing_session["results"]
 
         for resume_file in resumes:
             content = await resume_file.read()
@@ -120,7 +161,9 @@ async def screen_resumes(
             result = score_resume(text, job_description, filename)
             results.append(result)
 
-        if not results:
+        combined_results = existing_results + results
+
+        if not combined_results:
             raise HTTPException(
                 status_code=400,
                 detail={
@@ -129,17 +172,17 @@ async def screen_resumes(
                 },
             )
 
-        results.sort(key=lambda x: x["final_score"], reverse=True)
+        combined_results.sort(key=lambda x: x["final_score"], reverse=True)
 
-        session_id = str(uuid.uuid4())
-        save_session(session_id, job_description, results, token_data["sub"])
+        active_session_id = session_id or str(uuid.uuid4())
+        save_session(active_session_id, job_description, combined_results, token_data["sub"])
 
         return {
-            "session_id": session_id,
+            "session_id": active_session_id,
             "screened_by": token_data["sub"],
-            "total_resumes": len(results),
+            "total_resumes": len(combined_results),
             "rejected_files": rejected_files,
-            "results": results,
+            "results": combined_results,
             "screened_at": datetime.utcnow().isoformat()
         }
     except HTTPException:
