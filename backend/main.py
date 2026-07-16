@@ -52,9 +52,18 @@ app.add_middleware(
 ALLOWED_EXTENSIONS = {".pdf", ".docx"}
 MAX_FILE_SIZE_MB = float(os.getenv("MAX_FILE_SIZE_MB", "8"))
 
+startup_db_error = None
+
 @app.on_event("startup")
 async def startup():
-    init_db()
+    global startup_db_error
+    try:
+        init_db()
+    except Exception as e:
+        import traceback
+        startup_db_error = f"{str(e)}\n{traceback.format_exc()}"
+        print(f"Error initializing DB on startup: {startup_db_error}")
+
 
 @app.post("/auth/register")
 async def register(req: RegisterRequest):
@@ -242,6 +251,7 @@ async def health():
         "frontend_origin": frontend_origin,
         "allow_origins": allow_origins,
         "allow_origin_regex": allow_origin_regex,
+        "startup_db_error": startup_db_error
     }
 
 

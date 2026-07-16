@@ -3,10 +3,13 @@ import json
 import os
 from datetime import datetime
 
+# Fallback to /tmp if current directory is read-only (common in serverless environments like Vercel)
+current_dir_writable = os.access(".", os.W_OK)
 DB_PATH = os.getenv(
     "DB_PATH",
-    "/tmp/resume_screener.db" if os.getenv("VERCEL") else "resume_screener.db",
+    "/tmp/resume_screener.db" if (os.getenv("VERCEL") or not current_dir_writable) else "resume_screener.db",
 )
+
 
 def init_db():
     """Initialize the SQLite database."""
