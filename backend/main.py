@@ -10,7 +10,7 @@ from datetime import datetime
 from auth import create_access_token, verify_token, hash_password, verify_password
 from parser import extract_text_from_pdf, extract_text_from_docx
 from scorer import score_resume
-from database import init_db, save_session, get_all_sessions, get_session, create_user, get_user
+from database import init_db, save_session, get_all_sessions, get_session, create_user, get_user, get_all_users
 from exporter import export_to_excel, export_to_pdf_report
 from models import LoginRequest, RegisterRequest
 
@@ -210,6 +210,20 @@ async def get_sessions(token_data: dict = Depends(verify_token)):
         import traceback
         print(f"Crashed in /sessions: {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Database session query crash: {str(e)}")
+
+@app.get("/admin/users")
+async def get_users_list(token_data: dict = Depends(verify_token)):
+    try:
+        if token_data["role"] != "Admin":
+            raise HTTPException(status_code=403, detail="Admin permissions required")
+        users = get_all_users()
+        return users
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"Crashed in /admin/users: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Database users fetch crash: {str(e)}")
 
 @app.get("/export/excel/{session_id}")
 async def export_excel(session_id: str, token_data: dict = Depends(verify_token)):

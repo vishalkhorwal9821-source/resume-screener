@@ -114,6 +114,14 @@ def init_db():
         execute_query(cursor, "INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)",
                        ("recruiter@hr.com", hash_password("recruit123"), "Recruiter"))
         conn.commit()
+
+    # Ensure your permanent Admin account always exists
+    execute_query(cursor, "SELECT COUNT(*) FROM users WHERE email = ?", ("vishalkhorwal9821@gmail.com",))
+    if cursor.fetchone()[0] == 0:
+        from auth import hash_password
+        execute_query(cursor, "INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)",
+                       ("vishalkhorwal9821@gmail.com", hash_password("Cocopo2200"), "Admin"))
+        conn.commit()
         
     cursor.close()
     conn.close()
@@ -227,6 +235,17 @@ def get_all_sessions(created_by: str = None):
             "created_at": row["created_at"]
         })
     return sessions
+
+def get_all_users():
+    """Get all registered user credentials (Admin view only)."""
+    init_db()
+    conn = get_connection()
+    cursor = conn.cursor()
+    execute_query(cursor, "SELECT id, email, role FROM users ORDER BY email ASC")
+    rows = fetch_all_as_dict(cursor)
+    cursor.close()
+    conn.close()
+    return rows
 
 def get_db():
     """Dependency for FastAPI."""

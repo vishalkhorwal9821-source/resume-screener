@@ -37,6 +37,19 @@ export default function Navbar({ user, page, setPage, onLogout }) {
             <span>🕐</span>
             <span>History</span>
           </button>
+          {user.role === "Admin" && (
+            <button
+              onClick={() => setPage("users")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 flex items-center gap-1.5 ${
+                page === "users"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/40"
+              }`}
+            >
+              <span>👤</span>
+              <span>Users</span>
+            </button>
+          )}
         </div>
 
         {/* Profile and Logout */}

@@ -3,6 +3,7 @@ import Login from "./components/Login";
 import Screener from "./components/Screener";
 import History from "./components/History";
 import Navbar from "./components/Navbar";
+import Users from "./components/Users";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -23,6 +24,7 @@ export default function App() {
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-8 relative">
           {page === "screener" && <Screener token={user.access_token} />}
           {page === "history" && <History token={user.access_token} />}
+          {page === "users" && user.role === "Admin" && <Users token={user.access_token} />}
         </main>
       </div>
     </div>
