@@ -62,6 +62,18 @@ def extract_experience_years(text: str) -> float:
         return 0.0
     return min(max(candidates), 40.0)
 
+def get_required_experience_years(jd_text: str) -> float:
+    jd_lower = jd_text.lower()
+    if "intern" in jd_lower or "fresher" in jd_lower or "student" in jd_lower:
+        return 0.0
+    elif "junior" in jd_lower or "entry" in jd_lower or "associate" in jd_lower:
+        return 2.0
+    elif "senior" in jd_lower or "lead" in jd_lower or "principal" in jd_lower:
+        return 7.0
+    else:
+        return 4.0
+
+
 def extract_candidate_name(filename: str) -> str:
     name = filename.replace(".pdf", "").replace(".docx", "").replace("_", " ").replace("-", " ")
     return name.title()
@@ -144,7 +156,12 @@ def score_resume(resume_text: str, jd_text: str, filename: str) -> dict:
     tfidf_score = compute_tfidf_similarity(resume_text, jd_text)
     skill_data = compute_skill_match(resume_skills, jd_skills)
 
-    exp_score = min(experience_years / 10.0, 1.0)
+    required_exp = get_required_experience_years(jd_text)
+    if required_exp == 0.0:
+        exp_score = 1.0
+    else:
+        exp_score = min(experience_years / required_exp, 1.0)
+
     final_score = (
         skill_data["score"] * 0.50 +
         tfidf_score * 0.30 +
