@@ -1,6 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Base styles and fonts */
+body {
+  font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #f8fafc;
+  overflow-x: hidden;
+  color: #1e293b;
+}
 
 /* Smooth scrolling */
 html {
@@ -13,19 +23,94 @@ html {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #94a3b8;
+  background: #cbd5e1;
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: #94a3b8;
 }
 
-/* Transition defaults */
+/* Transition defaults for a snappy feel */
 * {
-  transition-property: color, background-color, border-color, opacity, transform;
-  transition-duration: 150ms;
-  transition-timing-function: ease;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Liquid Background Blob Animations */
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-25px) scale(1.08) rotate(12deg);
+  }
+}
+
+@keyframes float-reverse {
+  0%, 100% {
+    transform: translateY(0px) scale(1.08) rotate(12deg);
+  }
+  50% {
+    transform: translateY(25px) scale(1) rotate(0deg);
+  }
+}
+
+.animate-blob {
+  animation: float-slow 16s infinite ease-in-out;
+}
+
+.animate-blob-reverse {
+  animation: float-reverse 20s infinite ease-in-out;
+}
+
+.delay-2000 {
+  animation-delay: 2s;
+}
+
+.delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Custom glassmorphism utility classes */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 10px 30px -5px rgba(31, 38, 135, 0.03), 0 4px 6px -2px rgba(31, 38, 135, 0.01);
+}
+
+.glass-panel-hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass-panel-hover:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 20px 40px -8px rgba(31, 38, 135, 0.06), 0 8px 16px -4px rgba(31, 38, 135, 0.02);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 12px;
+  outline: none;
+  transition: all 0.2s ease-in-out;
+}
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+
+/* Custom shadow effects for buttons */
+.btn-primary-shadow {
+  box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.35);
+}
+.btn-primary-shadow:hover {
+  box-shadow: 0 6px 20px 0 rgba(59, 130, 246, 0.45);
 }

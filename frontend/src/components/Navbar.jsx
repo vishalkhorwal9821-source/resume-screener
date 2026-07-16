@@ -1,43 +1,56 @@
 export default function Navbar({ user, page, setPage, onLogout }) {
   return (
-    <nav className="sticky top-0 z-10 border-b border-white/30 bg-white/30 backdrop-blur-xl shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">🤖</span>
-          <span className="font-bold text-slate-800 text-lg">ResumeAI</span>
+    <nav className="sticky top-4 z-50 mx-4 max-w-7xl lg:mx-auto mt-4 rounded-2xl glass-panel border border-white/45 shadow-md">
+      <div className="px-6 py-3 flex items-center justify-between">
+        {/* Logo and Brand */}
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center shadow-inner">
+            <span className="text-lg">🤖</span>
+          </div>
+          <div>
+            <span className="font-bold text-slate-800 text-sm tracking-tight block">ResumeAI</span>
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 block -mt-1">Screener Hub</span>
+          </div>
         </div>
 
-        <div className="flex gap-2">
+        {/* Tab Controls */}
+        <div className="flex bg-slate-200/50 p-1 rounded-xl gap-0.5">
           <button
             onClick={() => setPage("screener")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 flex items-center gap-1.5 ${
               page === "screener"
-                ? "bg-blue-600 text-white"
-                : "text-slate-700 hover:bg-white/60"
+                ? "bg-white text-blue-600 shadow-sm"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/40"
             }`}
           >
-            📋 Screen Resumes
+            <span>📋</span>
+            <span>Screen</span>
           </button>
           <button
             onClick={() => setPage("history")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 flex items-center gap-1.5 ${
               page === "history"
-                ? "bg-blue-600 text-white"
-                : "text-slate-700 hover:bg-white/60"
+                ? "bg-white text-blue-600 shadow-sm"
+                : "text-slate-600 hover:text-slate-900 hover:bg-white/40"
             }`}
           >
-            🕐 History
+            <span>🕐</span>
+            <span>History</span>
           </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <p className="text-sm font-medium text-slate-800">{user.email}</p>
-            <p className="text-xs text-blue-600 font-semibold">{user.role}</p>
+        {/* Profile and Logout */}
+        <div className="flex items-center gap-3.5">
+          <div className="text-right hidden sm:block">
+            <p className="text-xs font-bold text-slate-800 leading-tight">{user.email}</p>
+            <p className="text-[9px] font-semibold text-blue-600 uppercase tracking-wider">{user.role}</p>
           </div>
+          
+          <div className="w-[1px] h-6 bg-slate-300/40 hidden sm:block" />
+
           <button
             onClick={onLogout}
-            className="text-sm text-gray-500 hover:text-red-500 transition"
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-500/10 bg-red-500/5 text-red-600 hover:bg-red-600 hover:text-white transition-all duration-200"
           >
             Logout
           </button>

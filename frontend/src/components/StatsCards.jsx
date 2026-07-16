@@ -8,20 +8,22 @@ export default function StatsCards({ results }) {
   const biasCount = results.filter((r) => r.has_bias_flags).length;
 
   const cards = [
-    { label: "Total Screened", value: total, icon: "📄", color: "bg-blue-50 text-blue-700" },
-    { label: "Shortlisted (≥70%)", value: shortlisted, icon: "✅", color: "bg-green-50 text-green-700" },
-    { label: "Average Score", value: `${avgScore}%`, icon: "📊", color: "bg-purple-50 text-purple-700" },
-    { label: "Top Score", value: `${topScore}%`, icon: "🏆", color: "bg-yellow-50 text-yellow-700" },
-    { label: "Bias Flags", value: biasCount, icon: "⚠️", color: "bg-orange-50 text-orange-700" },
+    { label: "Total Screened", value: total, icon: "📄", color: "border-blue-500/20 shadow-blue-500/5 text-blue-600" },
+    { label: "Shortlisted (≥70%)", value: shortlisted, icon: "✅", color: "border-emerald-500/20 shadow-emerald-500/5 text-emerald-600" },
+    { label: "Average Score", value: `${avgScore}%`, icon: "📊", color: "border-purple-500/20 shadow-purple-500/5 text-purple-600" },
+    { label: "Top Score", value: `${topScore}%`, icon: "🏆", color: "border-amber-500/20 shadow-amber-500/5 text-amber-600" },
+    { label: "Bias Flags", value: biasCount, icon: "⚠️", color: "border-rose-500/20 shadow-rose-500/5 text-rose-600" },
   ];
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
       {cards.map((c, i) => (
-        <div key={i} className={`rounded-2xl p-4 ${c.color} border border-opacity-20`}>
-          <div className="text-2xl mb-1">{c.icon}</div>
-          <div className="text-2xl font-bold">{c.value}</div>
-          <div className="text-xs mt-1 opacity-80">{c.label}</div>
+        <div key={i} className={`rounded-2xl p-5 border glass-panel glass-panel-hover flex flex-col justify-between ${c.color} shadow-sm`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[10px] font-bold tracking-wider uppercase text-slate-500">{c.label}</span>
+            <span className="text-lg">{c.icon}</span>
+          </div>
+          <div className="text-3xl font-extrabold tracking-tight text-slate-800">{c.value}</div>
         </div>
       ))}
     </div>
